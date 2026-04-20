@@ -1,0 +1,19 @@
+# Secrets — never commit
+.env
+.env.local
+*.env
+
+# Local environment
+.venv/
+__pycache__/
+*.pyc
+
+# Pipeline output (keep cache + history local; don't commit large CSV/MD files)
+output/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.log
+*.swp

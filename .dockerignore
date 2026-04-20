@@ -1,0 +1,30 @@
+# Don't ship developer state to the image
+.venv/
+.env
+.env.local
+*.env
+
+# Don't ship the local cache/results
+output/
+
+# Python noise
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.log
+*.swp
+
+# Git
+.git/
+.gitignore
+
+# Docs that don't need to be in the image
+*.md
+!CLAUDE.md
