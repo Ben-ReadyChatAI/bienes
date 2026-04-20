@@ -7,6 +7,7 @@ Open: http://localhost:5000
 Single file. ~30 MB RAM idle. ~110 MB peak when pipeline runs in background.
 """
 
+import json
 import os
 import re
 import shlex
@@ -17,7 +18,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from flask import Flask, jsonify, redirect, request
+from flask import Flask, Response, jsonify, redirect, request
 
 try:
     import markdown as md
@@ -653,34 +654,39 @@ async function runPipeline(e) {
   });
   $('runbtn').disabled = true;
   await fetch('/run', { method: 'POST', body });
-  poll();
+  // SSE will pick up the status transition automatically
   return false;
 }
 
-async function poll() {
-  const r = await fetch('/status');
-  const s = await r.json();
-  $('log').textContent = s.stdout_lines.join('\\n');
+// Current client state — populated from SSE snapshot + incremental events.
+const state = { running: false, exit_code: null, duration: null, started_at: null };
+const logLines = [];
+
+function appendLog(lines) {
+  for (const line of lines) logLines.push(line);
+  if (logLines.length > 400) logLines.splice(0, logLines.length - 400);
+  $('log').textContent = logLines.join('\\n');
   $('log').scrollTop = $('log').scrollHeight;
+}
+
+function renderStatus() {
   const st = $('status');
+  const s = state;
   if (s.running) {
-    // Detect stuck state — no new log lines in 60s AND nothing visible yet
     const stuckFor = s.started_at ? (Date.now() - new Date(s.started_at).getTime()) / 1000 : 0;
-    const lookStuck = stuckFor > 90 && (s.stdout_lines?.length || 0) === 0;
+    const lookStuck = stuckFor > 90 && logLines.length === 0;
     st.className = 'statusblock running';
     st.innerHTML = `<div class="head"><span class="dot"></span>On press · running (${Math.round(stuckFor)}s)</div>
       <div class="body">Composition begun · ${s.started_at}${lookStuck ? ' — <a href="#" onclick="resetState();return false" style="color:var(--accent);border-bottom:1px solid">looks stuck? reset</a>' : ''}</div>`;
     setTicker('PRESS RUNNING', 'warn');
-    setTimeout(poll, 2000);
+    $('runbtn').disabled = true;
   } else if (s.exit_code === 0) {
     st.className = 'statusblock done';
-    st.innerHTML = `<div class="head"><span class="dot"></span>Filed · ${s.duration}s</div><div class="body">Edition compiled. Recompositing…</div>`;
+    st.innerHTML = `<div class="head"><span class="dot"></span>Filed · ${s.duration}s</div><div class="body">Edition compiled.</div>`;
     setTicker('LAST RUN OK', 'on');
     $('tickerLast').textContent = `— · ${s.duration}s · ${s.started_at?.split('T')[1]||''}`;
     $('runbtn').disabled = false;
-    loadResults();
-    loadRuns();
-  } else if (s.exit_code !== null) {
+  } else if (s.exit_code !== null && s.exit_code !== undefined) {
     st.className = 'statusblock error';
     st.innerHTML = `<div class="head"><span class="dot"></span>Killed · exit ${s.exit_code}</div><div class="body">Press jam after ${s.duration}s — see proofs.</div>`;
     setTicker('PRESS JAM', 'warn');
@@ -691,6 +697,39 @@ async function poll() {
     setTicker('STANDING BY');
     $('runbtn').disabled = false;
   }
+}
+
+// Keep a rolling "seconds since started" tick so the UI timer moves even
+// when no log lines arrive. Cheap — no network.
+setInterval(() => { if (state.running) renderStatus(); }, 1000);
+
+function connectEvents() {
+  const es = new EventSource('/events');
+  es.addEventListener('snapshot', e => {
+    const d = JSON.parse(e.data);
+    logLines.length = 0;
+    appendLog(d.lines || []);
+    Object.assign(state, d);
+    renderStatus();
+  });
+  es.addEventListener('log', e => {
+    appendLog(JSON.parse(e.data).lines);
+  });
+  es.addEventListener('status', e => {
+    const wasRunning = state.running;
+    const d = JSON.parse(e.data);
+    Object.assign(state, d);
+    renderStatus();
+    // Just transitioned from running → done: reload results + past runs
+    if (wasRunning && !state.running && state.exit_code === 0) {
+      loadResults();
+      loadRuns();
+    }
+  });
+  es.onerror = () => {
+    // EventSource auto-reconnects; just rerender so stale "running" doesn't linger
+    setTimeout(renderStatus, 1500);
+  };
 }
 
 async function loadResults(filename) {
@@ -720,7 +759,7 @@ async function loadRuns() {
 
 async function resetState() {
   await fetch('/reset', { method: 'POST' });
-  poll();
+  // SSE will push the reset status automatically
 }
 
 const seedsParam = new URLSearchParams(location.search).get('seeds');
@@ -731,7 +770,7 @@ if (seedsParam) {
 
 loadResults();
 loadRuns();
-poll();
+connectEvents();  // live log + status via Server-Sent Events
 </script>
 </body></html>
 """
@@ -1070,6 +1109,71 @@ def run():
 
     threading.Thread(target=_stream_pipeline, args=(cmd,), daemon=True).start()
     return jsonify(started=True), 202
+
+
+@app.route("/events")
+def events():
+    """Server-Sent Events: push log lines and status transitions as they happen.
+
+    Replaces the 2s /status polling with live push. Each client keeps its own
+    cursor into stdout_lines so reconnects pick up where they left off.
+    Heartbeat comment every 15s keeps the CF tunnel connection warm.
+    """
+    def stream():
+        cursor = 0
+        last_running = None
+        last_exit = None
+        heartbeat_at = 0
+
+        # Prime with current snapshot so new clients catch up instantly
+        with _LOCK:
+            snapshot = {
+                "type": "snapshot",
+                "running": RUN_STATE["running"],
+                "exit_code": RUN_STATE["exit_code"],
+                "duration": RUN_STATE["duration"],
+                "started_at": RUN_STATE["started_at"],
+                "lines": list(RUN_STATE["stdout_lines"]),
+            }
+            cursor = len(RUN_STATE["stdout_lines"])
+            last_running = RUN_STATE["running"]
+            last_exit = RUN_STATE["exit_code"]
+        yield f"event: snapshot\ndata: {json.dumps(snapshot)}\n\n"
+
+        while True:
+            with _LOCK:
+                new_lines = RUN_STATE["stdout_lines"][cursor:]
+                cursor = len(RUN_STATE["stdout_lines"])
+                running = RUN_STATE["running"]
+                exit_code = RUN_STATE["exit_code"]
+                duration = RUN_STATE["duration"]
+                started_at = RUN_STATE["started_at"]
+
+            if new_lines:
+                yield f"event: log\ndata: {json.dumps({'lines': new_lines})}\n\n"
+
+            if running != last_running or exit_code != last_exit:
+                yield (
+                    "event: status\n"
+                    f"data: {json.dumps({'running': running, 'exit_code': exit_code, 'duration': duration, 'started_at': started_at})}\n\n"
+                )
+                last_running, last_exit = running, exit_code
+
+            # Periodic heartbeat so intermediaries don't close idle connections
+            heartbeat_at += 1
+            if heartbeat_at >= 30:  # ~15s at 0.5s loop
+                yield ": ping\n\n"
+                heartbeat_at = 0
+
+            time.sleep(0.5)
+
+    return Response(
+        stream(), mimetype="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",  # tell Caddy/nginx not to buffer
+        },
+    )
 
 
 @app.route("/reset", methods=["POST"])

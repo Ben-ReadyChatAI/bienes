@@ -22,5 +22,5 @@ EXPOSE 5055
 #   --timeout 600: pipeline subprocess can take 60-120s; bump worker timeout
 #   --threads 4: handle concurrent /status polls while pipeline runs
 #   --access-logfile -: stream logs to stdout (Coolify captures these)
-CMD ["gunicorn", "-w", "1", "--threads", "4", "--timeout", "600", \
+CMD ["gunicorn", "-w", "1", "--threads", "8", "--timeout", "600", \
      "-b", "0.0.0.0:5055", "--access-logfile", "-", "gui:app"]
