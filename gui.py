@@ -36,7 +36,9 @@ DEFAULT_COMPETITORS = (
 
 ROOT = Path(__file__).resolve().parent
 OUTPUT = ROOT / "output"
-PYTHON = ROOT / ".venv" / "bin" / "python"
+# Prefer the local .venv for dev; fall back to the current interpreter (prod/container)
+_venv_py = ROOT / ".venv" / "bin" / "python"
+PYTHON = str(_venv_py) if _venv_py.exists() else sys.executable
 BATCH = ROOT / "batch.py"
 
 app = Flask(__name__)
@@ -1051,7 +1053,7 @@ def run():
         return jsonify(error="no seeds"), 400
 
     cmd = [
-        str(PYTHON), str(BATCH),
+        PYTHON, str(BATCH),
         "--seeds", ",".join(seeds),
         "--subreddits", request.form.get("subreddits", "").strip(),
         "--locales", request.form.get("locales", "").strip(),
