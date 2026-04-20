@@ -53,29 +53,48 @@ _LOCK = threading.Lock()
 
 
 def _stream_pipeline(cmd):
-    """Run the pipeline subprocess and tee stdout into RUN_STATE."""
+    """Run the pipeline subprocess and tee stdout into RUN_STATE.
+
+    Adds:
+      - `python -u` to disable stdout buffering (so we see live progress)
+      - PYTHONUNBUFFERED=1 env to defend against re-exec/child procs
+      - try/finally so RUN_STATE always resets (no stuck running=True)
+      - return-code sentinel (-1) if the subprocess fails to spawn at all
+    """
+    # Force unbuffered mode at the subprocess level
+    if cmd and cmd[0].endswith("python") or (cmd and "/python" in cmd[0]):
+        cmd = [cmd[0], "-u"] + cmd[1:]
+    child_env = {**os.environ, "PYTHONUNBUFFERED": "1"}
+
     with _LOCK:
         RUN_STATE.update(
             running=True, started_at=datetime.now().isoformat(timespec="seconds"),
             stdout_lines=[], exit_code=None, duration=None, args=cmd,
         )
     start = time.time()
-    proc = subprocess.Popen(
-        cmd, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-        text=True, bufsize=1,
-    )
-    for line in proc.stdout:
-        line = line.rstrip()
-        with _LOCK:
-            RUN_STATE["stdout_lines"].append(line)
-            if len(RUN_STATE["stdout_lines"]) > 200:
-                RUN_STATE["stdout_lines"] = RUN_STATE["stdout_lines"][-200:]
-    proc.wait()
-    with _LOCK:
-        RUN_STATE.update(
-            running=False, exit_code=proc.returncode,
-            duration=round(time.time() - start, 1),
+    returncode = -1
+    try:
+        proc = subprocess.Popen(
+            cmd, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            text=True, bufsize=1, env=child_env,
         )
+        for line in proc.stdout:
+            line = line.rstrip()
+            with _LOCK:
+                RUN_STATE["stdout_lines"].append(line)
+                if len(RUN_STATE["stdout_lines"]) > 200:
+                    RUN_STATE["stdout_lines"] = RUN_STATE["stdout_lines"][-200:]
+        proc.wait()
+        returncode = proc.returncode
+    except Exception as e:
+        with _LOCK:
+            RUN_STATE["stdout_lines"].append(f"ERROR launching pipeline: {e}")
+    finally:
+        with _LOCK:
+            RUN_STATE.update(
+                running=False, exit_code=returncode,
+                duration=round(time.time() - start, 1),
+            )
 
 
 def _latest_shortlist():
@@ -643,8 +662,12 @@ async function poll() {
   $('log').scrollTop = $('log').scrollHeight;
   const st = $('status');
   if (s.running) {
+    // Detect stuck state — no new log lines in 60s AND nothing visible yet
+    const stuckFor = s.started_at ? (Date.now() - new Date(s.started_at).getTime()) / 1000 : 0;
+    const lookStuck = stuckFor > 90 && (s.stdout_lines?.length || 0) === 0;
     st.className = 'statusblock running';
-    st.innerHTML = `<div class="head"><span class="dot"></span>On press · running</div><div class="body">Composition begun · ${s.started_at}</div>`;
+    st.innerHTML = `<div class="head"><span class="dot"></span>On press · running (${Math.round(stuckFor)}s)</div>
+      <div class="body">Composition begun · ${s.started_at}${lookStuck ? ' — <a href="#" onclick="resetState();return false" style="color:var(--accent);border-bottom:1px solid">looks stuck? reset</a>' : ''}</div>`;
     setTicker('PRESS RUNNING', 'warn');
     setTimeout(poll, 2000);
   } else if (s.exit_code === 0) {
@@ -691,6 +714,11 @@ async function loadRuns() {
          <span class="when">${f.when}</span>
        </div>`).join('')
     : '<div class="empty">No archived editions yet.</div>';
+}
+
+async function resetState() {
+  await fetch('/reset', { method: 'POST' });
+  poll();
 }
 
 const seedsParam = new URLSearchParams(location.search).get('seeds');
@@ -1040,6 +1068,24 @@ def run():
 
     threading.Thread(target=_stream_pipeline, args=(cmd,), daemon=True).start()
     return jsonify(started=True), 202
+
+
+@app.route("/reset", methods=["POST"])
+def reset():
+    """Unstick a hung run — safe to call anytime. Only resets our in-memory
+    state tracking; doesn't kill any actual subprocess (Coolify handles that
+    if you redeploy). Useful after network blips or crashes."""
+    with _LOCK:
+        stuck_for = None
+        if RUN_STATE["running"] and RUN_STATE["started_at"]:
+            try:
+                dt = datetime.fromisoformat(RUN_STATE["started_at"])
+                stuck_for = (datetime.now() - dt).total_seconds()
+            except Exception:
+                pass
+        RUN_STATE.update(running=False, exit_code=None, duration=None,
+                         stdout_lines=["(state reset)"])
+    return jsonify(ok=True, was_stuck_seconds=stuck_for)
 
 
 @app.route("/status")
