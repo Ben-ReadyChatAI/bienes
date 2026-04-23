@@ -526,31 +526,34 @@ button.secondary:hover { background: var(--ink); color: var(--paper); }
 PAGE = """<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8">
-<title>BIENES · Blog SEO Longtail Researcher</title>
-<style>""" + SHARED_CSS + """</style>
+<title>Bienes · SEO topic finder</title>
+<style>""" + SHARED_CSS + """
+.help { font: 400 11px/1.4 var(--mono); color: var(--taupe); margin-top: 4px;
+        letter-spacing: 0.02em; text-transform: none; }
+</style>
 </head><body>
 
 <div class="ticker">
   <div class="left">
-    <span><span class="dot on"></span>BIENES NO. 01</span>
-    <span>VOL. I · LONG-TAIL EDITION</span>
+    <span><span class="dot on"></span>Bienes</span>
+    <span>SEO topic finder</span>
   </div>
   <div class="right" id="tickerStatus">
-    <span><span class="dot"></span>STANDING BY</span>
-    <span id="tickerLast">— · NO RECENT RUN</span>
+    <span><span class="dot"></span>READY</span>
+    <span id="tickerLast">— · no recent run</span>
   </div>
 </div>
 
 <div class="masthead">
   <h1 class="wordmark">Bienes<span class="punct">.</span></h1>
   <div class="dek">
-    <div class="label">— Editorial Research Desk —</div>
-    Spanish-language SEO long-tail researcher<br>
-    Real-estate intent · Venezuela · diaspora
+    <div class="label">— Spanish SEO topic finder —</div>
+    Give it a few topic ideas;<br>
+    it returns the best blog articles to write.
   </div>
   <div class="issue">
     HabitaOne / Caracas<br>
-    Edition · 2026
+    Built 2026
   </div>
 </div>
 
@@ -558,81 +561,87 @@ PAGE = """<!doctype html>
   <div class="col-left">
 
     <div class="section-title">
-      <span>I. Pipeline Brief</span>
-      <span class="badge">filed</span>
+      <span>1. Run a search</span>
+      <span class="badge">setup</span>
     </div>
 
     <form id="runform" onsubmit="return runPipeline(event)">
       <div class="field">
-        <label class="lbl">Seed topics
-          <a href="/discover" style="float:right">› Auto-discover</a>
+        <label class="lbl">Topics to research (one per line)
+          <a href="/discover" style="float:right">› Auto-suggest topics</a>
         </label>
         <textarea name="seeds" id="seedsBox" required>comprar casa venezuela
 vender casa venezuela
 credito hipotecario venezuela
 comprar casa venezuela desde el exterior</textarea>
+        <div class="help">Short topic ideas — Bienes expands each into 50-200 long-tail variants automatically.</div>
       </div>
 
       <div class="field">
-        <label class="lbl">Subreddits</label>
+        <label class="lbl">Reddit communities to mine</label>
         <input name="subreddits" value="venezuela,vzla">
+        <div class="help">Comma-separated, no "r/" prefix. Used to find what real users discuss.</div>
       </div>
 
       <div class="field-row">
         <div class="field">
-          <label class="lbl">Locales</label>
+          <label class="lbl">Countries (Google search)</label>
           <input name="locales" value="ve,co,us">
+          <div class="help">2-letter codes. ve = Venezuela, co = Colombia, us = USA. Picks easiest country to rank in.</div>
         </div>
         <div class="field">
-          <label class="lbl">SERP·Top·N</label>
+          <label class="lbl">Google checks</label>
           <input name="check_serp" type="number" value="20" min="0" max="100">
+          <div class="help">How many top phrases to deeply analyze (0 = skip, fast but less accurate).</div>
         </div>
       </div>
 
       <div class="field-row">
         <div class="field">
-          <label class="lbl">Shortlist</label>
+          <label class="lbl">Article ideas to show</label>
           <input name="shortlist" type="number" value="15" min="1" max="50">
+          <div class="help">Final count in the result (top picks).</div>
         </div>
         <div class="field">
-          <label class="lbl">Recurse</label>
+          <label class="lbl">Auto-discover rounds</label>
           <input name="recurse" type="number" value="1" min="0" max="3">
+          <div class="help">0 = use only your topics. 1 = also harvest related topics from Reddit + trends.</div>
         </div>
       </div>
 
-      <label class="checkbox"><input type="checkbox" name="check_freshness" checked> Page freshness</label>
-      <label class="checkbox"><input type="checkbox" name="diff_last"> Diff against last run</label>
+      <label class="checkbox"><input type="checkbox" name="check_freshness" checked> Check how old the top pages are</label>
+      <label class="checkbox"><input type="checkbox" name="diff_last"> Highlight what's new since last run</label>
 
-      <button id="runbtn" class="primary" type="submit" style="margin-top: 14px">▶ Set the press</button>
+      <button id="runbtn" class="primary" type="submit" style="margin-top: 14px">▶ Find article topics</button>
     </form>
 
     <div id="status" class="statusblock idle">
-      <div class="head"><span class="dot"></span>Standing by</div>
-      <div class="body">Awaiting brief.</div>
+      <div class="head"><span class="dot"></span>Ready</div>
+      <div class="body">Click "Find article topics" to start.</div>
     </div>
 
     <div class="log" id="log"></div>
 
     <div class="section-title" style="margin-top: 32px">
-      <span>II. Past Editions</span>
+      <span>2. Past results</span>
       <span class="badge" id="runCount">—</span>
     </div>
-    <div class="runs" id="runs"><div class="empty">No archived editions yet.</div></div>
+    <div class="runs" id="runs"><div class="empty">No past runs yet.</div></div>
   </div>
 
   <div class="col-right">
     <div class="results-meta">
-      <span>III. The Edition · Article Brief</span>
-      <span id="filename">— · pending issue</span>
+      <span>3. Article ideas</span>
+      <span id="filename">— · waiting for first run</span>
     </div>
     <div class="results" id="results">
-      <div class="results-empty">No edition filed.<br>Run the press to compile.</div>
+      <div class="results-empty">No results yet.<br>Set up a search on the left and click "Find article topics".</div>
     </div>
   </div>
 </main>
 
 <div class="footer">
-  Bienes · A research desk for free-tier SEO · Press release · 2026
+  Bienes · Free-tier SEO topic finder · Built 2026
 </div>
 
 <script>
@@ -676,25 +685,25 @@ function renderStatus() {
     const stuckFor = s.started_at ? (Date.now() - new Date(s.started_at).getTime()) / 1000 : 0;
     const lookStuck = stuckFor > 90 && logLines.length === 0;
     st.className = 'statusblock running';
-    st.innerHTML = `<div class="head"><span class="dot"></span>On press · running (${Math.round(stuckFor)}s)</div>
-      <div class="body">Composition begun · ${s.started_at}${lookStuck ? ' — <a href="#" onclick="resetState();return false" style="color:var(--accent);border-bottom:1px solid">looks stuck? reset</a>' : ''}</div>`;
-    setTicker('PRESS RUNNING', 'warn');
+    st.innerHTML = `<div class="head"><span class="dot"></span>Working… (${Math.round(stuckFor)}s elapsed)</div>
+      <div class="body">Started ${s.started_at?.split('T')[1] || s.started_at}${lookStuck ? ' — <a href="#" onclick="resetState();return false" style="color:var(--accent);border-bottom:1px solid">looks stuck? click to reset</a>' : ''}</div>`;
+    setTicker('WORKING', 'warn');
     $('runbtn').disabled = true;
   } else if (s.exit_code === 0) {
     st.className = 'statusblock done';
-    st.innerHTML = `<div class="head"><span class="dot"></span>Filed · ${s.duration}s</div><div class="body">Edition compiled.</div>`;
-    setTicker('LAST RUN OK', 'on');
+    st.innerHTML = `<div class="head"><span class="dot"></span>Done in ${s.duration}s</div><div class="body">Showing the article ideas on the right.</div>`;
+    setTicker('LAST RUN: OK', 'on');
     $('tickerLast').textContent = `— · ${s.duration}s · ${s.started_at?.split('T')[1]||''}`;
     $('runbtn').disabled = false;
   } else if (s.exit_code !== null && s.exit_code !== undefined) {
     st.className = 'statusblock error';
-    st.innerHTML = `<div class="head"><span class="dot"></span>Killed · exit ${s.exit_code}</div><div class="body">Press jam after ${s.duration}s — see proofs.</div>`;
-    setTicker('PRESS JAM', 'warn');
+    st.innerHTML = `<div class="head"><span class="dot"></span>Failed (error ${s.exit_code})</div><div class="body">After ${s.duration}s — check the log below for what went wrong.</div>`;
+    setTicker('FAILED', 'warn');
     $('runbtn').disabled = false;
   } else {
     st.className = 'statusblock idle';
-    st.innerHTML = `<div class="head"><span class="dot"></span>Standing by</div><div class="body">Awaiting brief.</div>`;
-    setTicker('STANDING BY');
+    st.innerHTML = `<div class="head"><span class="dot"></span>Ready</div><div class="body">Click "Find article topics" to start.</div>`;
+    setTicker('READY');
     $('runbtn').disabled = false;
   }
 }
@@ -779,8 +788,10 @@ connectEvents();  // live log + status via Server-Sent Events
 DISCOVER_PAGE = """<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8">
-<title>BIENES · Seed Survey</title>
+<title>Bienes · Suggest topics</title>
 <style>""" + SHARED_CSS + """
+.help { font: 400 11px/1.4 var(--mono); color: var(--taupe); margin-top: 4px;
+        letter-spacing: 0.02em; text-transform: none; }
 .surveyhead { padding: 22px 24px; border-bottom: 1px solid var(--rule); position: relative; z-index: 2; }
 .surveyhead .lede {
   font: 600 14px/1.45 var(--mono); letter-spacing: 0.04em;
@@ -888,96 +899,102 @@ DISCOVER_PAGE = """<!doctype html>
 
 <div class="ticker">
   <div class="left">
-    <span><span class="dot on"></span>BIENES NO. 01</span>
-    <span>VOL. I · SEED SURVEY</span>
+    <span><span class="dot on"></span>Bienes</span>
+    <span>Suggest topics</span>
   </div>
   <div class="right">
-    <a href="/" style="border:0;letter-spacing:0.16em;font-size:10.5px;text-transform:uppercase;color:var(--ink-soft)">‹‹ return to press</a>
+    <a href="/" style="border:0;letter-spacing:0.16em;font-size:10.5px;text-transform:uppercase;color:var(--ink-soft)">‹‹ back to main</a>
   </div>
 </div>
 
 <div class="masthead">
   <h1 class="wordmark">Bienes<span class="punct">.</span></h1>
   <div class="dek">
-    <div class="label">— Seed survey —</div>
-    Auto-discover candidate seeds from<br>
-    sitemaps · competitor URLs · niche templates
+    <div class="label">— Auto-suggest topics —</div>
+    Find topic ideas by mining your<br>
+    site + competitors + Spanish templates.
   </div>
   <div class="issue">
     HabitaOne / Caracas<br>
-    Edition · 2026
+    Built 2026
   </div>
 </div>
 
 <div class="surveyhead">
   <div class="lede">
-    <strong>The pipeline needs seeds.</strong> This survey mines your sitemap (proven topics),
-    your competitors' sitemaps (industry consensus), and a Spanish real-estate
-    template. Each candidate gets a score and source attribution. Tick the ones
-    you want, then file them with the press.
+    <strong>Don't know what topics to research?</strong> This page suggests them.
+    It scans your website's URLs (proven topics for you), your competitors' websites
+    (what they cover that you don't), and a Spanish real-estate template
+    (common verb + noun + city combos). Pick the ones that fit, then send them
+    to the main page.
   </div>
 </div>
 
 <main class="survey-grid">
   <div class="col-left">
     <div class="section-title">
-      <span>I. Survey Brief</span>
-      <span class="badge">parameters</span>
+      <span>1. What to mine</span>
+      <span class="badge">setup</span>
     </div>
 
     <form id="discform" onsubmit="return discover(event)">
       <div class="field">
-        <label class="lbl">Your domain</label>
+        <label class="lbl">Your website</label>
         <input name="domain" placeholder="habitaone.com" value="habitaone.com">
+        <div class="help">We'll scan this site's sitemap.xml for topics you already cover.</div>
       </div>
 
       <div class="field">
-        <label class="lbl">Niche · drives template generator</label>
+        <label class="lbl">Industry / niche keywords</label>
         <input name="niche" placeholder="venezuela real estate" value="venezuela real estate">
+        <div class="help">Used to generate template-based topic ideas (e.g. "comprar casa caracas").</div>
       </div>
 
       <div class="field">
-        <label class="lbl">Competitor domains</label>
+        <label class="lbl">Competitor websites</label>
         <textarea name="competitors">""" + DEFAULT_COMPETITORS + """</textarea>
+        <div class="help">Comma-separated domains. We scan each for topic ideas they're targeting.</div>
       </div>
 
       <div class="field">
-        <label class="lbl">Max candidates</label>
+        <label class="lbl">Maximum suggestions</label>
         <input name="limit" type="number" value="25" min="5" max="100">
+        <div class="help">How many topic ideas to return (sorted best-first).</div>
       </div>
 
       <button id="discBtn" class="primary btn-primary-large" type="submit" style="margin-top: 14px">
-        ▶ Run survey
+        ▶ Find topic ideas
       </button>
     </form>
 
     <div class="legend">
-      <strong>Legend</strong><br><br>
-      Score · gold = template / single source · oxblood = multi-source consensus<br><br>
-      Sources tagged <code style="background:transparent;border:0;color:var(--accent)">yours</code> = your sitemap (highest weight) ·
-      <code style="background:transparent;border:0">comp:*</code> = competitor sitemap ·
-      <code style="background:transparent;border:0">template</code> = niche-template combinator
+      <strong>How to read the results</strong><br><br>
+      <strong style="color:var(--accent)">Score</strong> = how strong the signal is. Higher = more sources agree this is a real topic.<br>
+      Score 1 = appears in only one source · Score 2-3 = multi-source consensus.<br><br>
+      <strong style="color:var(--accent)">Source tags</strong>: <code style="background:transparent;border:0;color:var(--accent)">yours</code> = from your sitemap (strongest signal) ·
+      <code style="background:transparent;border:0">comp:*</code> = from a competitor's sitemap ·
+      <code style="background:transparent;border:0">template</code> = generated from your niche keywords.
     </div>
   </div>
 
   <div class="col-right">
     <div class="cand-toolbar">
-      <span class="title" id="candTitle">II. Candidates · awaiting survey</span>
+      <span class="title" id="candTitle">2. Suggestions · click "Find topic ideas" to start</span>
       <div class="actions">
-        <button class="secondary" type="button" onclick="selectAll(true)">Tick all</button>
+        <button class="secondary" type="button" onclick="selectAll(true)">Select all</button>
         <button class="secondary" type="button" onclick="selectAll(false)">Clear</button>
-        <button class="primary" type="button" onclick="useSelected()">› File with press</button>
+        <button class="primary" type="button" onclick="useSelected()">› Use selected</button>
       </div>
     </div>
     <div id="candidates" class="cand-empty">
-      Awaiting survey results.<br>
-      <span style="font-size:14px;color:var(--ink-soft);font-family:var(--mono);font-style:normal;letter-spacing:0.08em;">Fill the brief on the left and run.</span>
+      No suggestions yet.<br>
+      <span style="font-size:14px;color:var(--ink-soft);font-family:var(--mono);font-style:normal;letter-spacing:0.08em;">Fill the form on the left, then click the button.</span>
     </div>
   </div>
 </main>
 
 <div class="footer">
-  Bienes · Seed Survey · Press release · 2026
+  Bienes · Topic suggester · Built 2026
 </div>
 
 <script>
@@ -986,9 +1003,9 @@ const $ = id => document.getElementById(id);
 async function discover(e) {
   e.preventDefault();
   $('discBtn').disabled = true;
-  $('discBtn').textContent = '⋯ surveying';
-  $('candidates').innerHTML = '<div class="cand-empty">Mining sitemaps in parallel · ~10–30s</div>';
-  $('candTitle').textContent = 'II. Candidates · in progress…';
+  $('discBtn').textContent = '⋯ working (about 10-30 seconds)';
+  $('candidates').innerHTML = '<div class="cand-empty">Scanning sitemaps in parallel… ~10-30 seconds</div>';
+  $('candTitle').textContent = '2. Suggestions · working…';
   const fd = new FormData($('discform'));
   const body = new URLSearchParams();
   for (const [k, v] of fd) body.append(k, v);
@@ -996,13 +1013,13 @@ async function discover(e) {
     const r = await fetch('/discover/run', { method: 'POST', body });
     const j = await r.json();
     renderCandidates(j.candidates);
-    $('candTitle').textContent = `II. Candidates · ${j.candidates.length} found`;
+    $('candTitle').textContent = `2. Suggestions · ${j.candidates.length} found`;
   } catch (err) {
-    $('candidates').innerHTML = '<div class="cand-empty" style="color:var(--accent)">Survey failed: ' + err.message + '</div>';
-    $('candTitle').textContent = 'II. Candidates · error';
+    $('candidates').innerHTML = '<div class="cand-empty" style="color:var(--accent)">Failed: ' + err.message + '</div>';
+    $('candTitle').textContent = '2. Suggestions · error';
   } finally {
     $('discBtn').disabled = false;
-    $('discBtn').textContent = '▶ Run survey';
+    $('discBtn').textContent = '▶ Find topic ideas';
   }
   return false;
 }
@@ -1042,7 +1059,7 @@ function useSelected() {
   const seeds = Array.from(document.querySelectorAll('.cand-row.checked'))
     .map(r => r.dataset.phrase);
   if (!seeds.length) {
-    alert('Tick at least one candidate first.');
+    alert('Select at least one topic first.');
     return;
   }
   location.href = '/?seeds=' + encodeURIComponent(seeds.join('\\n'));
