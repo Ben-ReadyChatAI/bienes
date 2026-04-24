@@ -11,6 +11,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy app code
 COPY *.py ./
 COPY tools/ ./tools/
+COPY static/ ./static/
 
 # Output dir is mounted as a volume in production for cache + history
 RUN mkdir -p /app/output
