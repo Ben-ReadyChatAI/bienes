@@ -42,7 +42,7 @@ _venv_py = ROOT / ".venv" / "bin" / "python"
 PYTHON = str(_venv_py) if _venv_py.exists() else sys.executable
 BATCH = ROOT / "batch.py"
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder=str(ROOT / "static"), static_url_path="/static")
 
 RUN_STATE = {
     "running": False,
@@ -537,6 +537,7 @@ PAGE = """<!doctype html>
   <div class="left">
     <span><span class="dot on"></span>Bienes</span>
     <span>SEO topic finder</span>
+    <a href="/guide" style="border:0;color:var(--accent);font-weight:600">📖 Guide</a>
   </div>
   <div class="right" id="tickerStatus">
     <span><span class="dot"></span>READY</span>
@@ -901,6 +902,7 @@ DISCOVER_PAGE = """<!doctype html>
   <div class="left">
     <span><span class="dot on"></span>Bienes</span>
     <span>Suggest topics</span>
+    <a href="/guide" style="border:0;color:var(--accent);font-weight:600">📖 Guide</a>
   </div>
   <div class="right">
     <a href="/" style="border:0;letter-spacing:0.16em;font-size:10.5px;text-transform:uppercase;color:var(--ink-soft)">‹‹ back to main</a>
@@ -1069,6 +1071,390 @@ function useSelected() {
 """
 
 
+GUIDE_PAGE = """<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<title>Bienes · Guide</title>
+<style>""" + SHARED_CSS + """
+.guide-toc {
+  position: fixed; top: 80px; right: 24px; width: 220px;
+  background: var(--paper-light); border: 1.5px solid var(--ink);
+  padding: 14px 16px; font: 500 11px/1.6 var(--mono);
+  letter-spacing: 0.06em; z-index: 5; max-height: 75vh; overflow-y: auto;
+}
+.guide-toc .head { font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.18em; color: var(--accent); margin-bottom: 8px;
+  padding-bottom: 6px; border-bottom: 1px solid var(--ink-soft); font-size: 10px; }
+.guide-toc a { display: block; padding: 3px 0; color: var(--ink-soft);
+  border: 0; }
+.guide-toc a:hover { color: var(--accent); }
+.guide-toc a .num { color: var(--gold); font-weight: 700; margin-right: 6px; }
+
+.guide {
+  position: relative; z-index: 2;
+  max-width: 760px; margin: 0 auto; padding: 0 24px 96px;
+  font-family: var(--fr); font-size: 16px; line-height: 1.7;
+}
+.guide h2 {
+  font: 800 36px/1.05 var(--fr); font-variation-settings: 'opsz' 144;
+  letter-spacing: -0.025em; color: var(--ink);
+  margin: 56px 0 8px; display: grid;
+  grid-template-columns: 56px 1fr; gap: 14px; align-items: baseline;
+  scroll-margin-top: 24px;
+}
+.guide h2 .folio {
+  font: 800 38px/1 var(--fr); color: var(--gold); letter-spacing: -0.04em;
+  font-feature-settings: 'tnum';
+}
+.guide h3 {
+  font: 700 22px/1.2 var(--fr); margin: 24px 0 8px; color: var(--ink);
+}
+.guide p { margin: 8px 0 14px; max-width: 64ch; }
+.guide p strong { color: var(--ink); font-weight: 700; }
+.guide a { color: var(--accent); border-bottom: 1px solid var(--accent); }
+.guide a:hover { color: var(--ink); border-bottom-color: var(--ink); }
+.guide code {
+  font: 500 0.85em/1 var(--mono); background: var(--paper-light);
+  border: 1px solid var(--ink-soft); padding: 1px 6px; letter-spacing: -0.01em;
+}
+
+.guide ul { list-style: none; padding: 0; margin: 8px 0 16px; max-width: 64ch; }
+.guide ul li {
+  position: relative; padding: 5px 0 5px 20px;
+  border-bottom: 1px dotted var(--ink-soft);
+}
+.guide ul li:last-child { border-bottom: 0; }
+.guide ul li::before {
+  content: '§'; position: absolute; left: 0; top: 7px;
+  color: var(--gold); font-family: var(--fr); font-weight: 700;
+}
+
+.guide ol {
+  list-style: none; padding: 0; margin: 8px 0 16px; max-width: 64ch;
+  counter-reset: gol;
+}
+.guide ol li {
+  position: relative; padding: 5px 0 5px 32px; counter-increment: gol;
+  border-bottom: 1px dotted var(--ink-soft);
+}
+.guide ol li:last-child { border-bottom: 0; }
+.guide ol li::before {
+  content: counter(gol, decimal-leading-zero);
+  position: absolute; left: 0; top: 5px;
+  font: 700 13px/1 var(--mono); color: var(--accent); letter-spacing: 0.04em;
+}
+
+.shot {
+  display: block; margin: 18px 0 24px;
+  border: 1.5px solid var(--ink); background: var(--paper-light);
+  max-width: 100%; height: auto;
+}
+.shot-cap {
+  font: 500 11px/1.4 var(--mono); letter-spacing: 0.06em;
+  color: var(--taupe); margin-top: -16px; margin-bottom: 28px;
+  padding-left: 6px; border-left: 3px solid var(--gold);
+  text-transform: none;
+}
+.shot-cap strong { color: var(--ink); }
+
+.callout {
+  background: var(--paper-dim); border-left: 4px solid var(--accent);
+  padding: 14px 18px; margin: 18px 0 24px; max-width: 64ch;
+  font-size: 15px;
+}
+.callout .label {
+  display: block; font: 700 10.5px/1 var(--mono); letter-spacing: 0.2em;
+  text-transform: uppercase; color: var(--accent); margin-bottom: 6px;
+}
+
+.field-table {
+  width: 100%; border-collapse: collapse; margin: 14px 0 22px;
+  font: 400 14px/1.5 var(--fr); max-width: 64ch;
+}
+.field-table th, .field-table td {
+  padding: 8px 10px; border-bottom: 1px solid var(--ink-soft);
+  vertical-align: top; text-align: left;
+}
+.field-table th {
+  background: var(--ink); color: var(--paper);
+  font: 700 10.5px/1 var(--mono); letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.field-table .name { font: 600 13px/1.3 var(--mono); width: 24%;
+  color: var(--accent); letter-spacing: -0.005em; }
+.field-table .ex { font: 500 12px/1.4 var(--mono); color: var(--taupe);
+  width: 22%; }
+
+.kicker {
+  font: 800 16px/1 var(--mono); letter-spacing: 0.04em;
+  color: var(--accent); margin-bottom: 8px; text-transform: uppercase;
+}
+.guide-hero {
+  padding: 60px 0 36px; max-width: 720px; margin: 0 auto;
+  text-align: left; border-bottom: 1px solid var(--ink-soft); margin-bottom: 36px;
+}
+.guide-hero h1 {
+  font: 800 56px/1 var(--fr); font-variation-settings: 'opsz' 144;
+  letter-spacing: -0.03em; margin-bottom: 12px;
+}
+.guide-hero .sub {
+  font: 400 22px/1.4 var(--fr); font-style: italic;
+  color: var(--ink-soft); max-width: 56ch;
+}
+
+@media (max-width: 1100px) {
+  .guide-toc { display: none; }
+}
+</style>
+</head><body>
+
+<div class="ticker">
+  <div class="left">
+    <span><span class="dot on"></span>Bienes</span>
+    <span>Guide</span>
+    <a href="/" style="border:0;color:var(--accent);font-weight:600">‹ Back to app</a>
+  </div>
+  <div class="right">
+    <span style="color:var(--taupe)">A 5-minute read</span>
+  </div>
+</div>
+
+<div class="masthead">
+  <h1 class="wordmark">Bienes<span class="punct">.</span></h1>
+  <div class="dek">
+    <div class="label">— How to use it —</div>
+    Walks through every screen,<br>
+    every field, every output.
+  </div>
+  <div class="issue">
+    HabitaOne / Caracas<br>
+    Built 2026
+  </div>
+</div>
+
+<aside class="guide-toc">
+  <div class="head">Contents</div>
+  <a href="#what"><span class="num">01</span>What it is</a>
+  <a href="#quickstart"><span class="num">02</span>Quick start</a>
+  <a href="#fields"><span class="num">03</span>Every field</a>
+  <a href="#running"><span class="num">04</span>While it runs</a>
+  <a href="#results"><span class="num">05</span>Reading results</a>
+  <a href="#suggest"><span class="num">06</span>Auto-suggest topics</a>
+  <a href="#reuse"><span class="num">07</span>Reusing past runs</a>
+  <a href="#tips"><span class="num">08</span>Tips & limits</a>
+</aside>
+
+<div class="guide-hero">
+  <div class="kicker">Welcome</div>
+  <h1>Bienes — how to use it.</h1>
+  <p class="sub">A short, screenshot-led walkthrough. Read top to bottom or jump to any section using the contents on the right.</p>
+</div>
+
+<div class="guide">
+
+<h2 id="what"><span class="folio">01</span>What it is</h2>
+<p>
+  <strong>Bienes</strong> is a free-tier SEO research tool. You give it a few short
+  topic ideas in Spanish (e.g. <code>comprar casa venezuela</code>); it returns
+  a ranked list of blog articles to write that have <em>real search demand</em>
+  AND <em>beatable competition on Google</em>.
+</p>
+<p>
+  It pulls signals from Google Autocomplete, Reddit, Google Trends, and real Google
+  search results (via Serper / Brave / Google CSE), then scores each candidate on
+  11 dimensions before grouping near-duplicates into clusters. Output is a
+  ranked Markdown shortlist with reasoning shown for every pick.
+</p>
+
+<div class="callout">
+  <span class="label">In one line</span>
+  Topic ideas in → ranked list of blog articles to write out, with the reasoning
+  shown for every pick.
+</div>
+
+
+<h2 id="quickstart"><span class="folio">02</span>Quick start (3 steps)</h2>
+
+<ol>
+  <li><strong>Open the main page</strong> at <a href="/">habitablog.readychatai.lat</a>.</li>
+  <li><strong>Type 3-6 short topics</strong> in the textarea — one per line. Default examples are pre-filled.</li>
+  <li><strong>Click "Find article topics"</strong>. Wait 15-60 seconds. Results appear on the right.</li>
+</ol>
+
+<img src="/static/guide/01-main-idle.png" alt="Main page idle" class="shot">
+<div class="shot-cap"><strong>The main page on first visit.</strong> Form on the left, results render on the right.</div>
+
+
+<h2 id="fields"><span class="folio">03</span>Every field, explained</h2>
+
+<img src="/static/guide/02-form-detail.png" alt="Form detail" class="shot" style="max-width:380px">
+<div class="shot-cap"><strong>The form, zoomed in.</strong> Each field has a one-line explanation under it.</div>
+
+<table class="field-table">
+  <thead><tr><th>Field</th><th>Example</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr>
+      <td class="name">Topics to research</td>
+      <td class="ex">comprar casa venezuela</td>
+      <td>Short topic ideas, one per line. Bienes auto-expands each into 50-200 long-tail variants via Google Autocomplete.</td>
+    </tr>
+    <tr>
+      <td class="name">Reddit communities</td>
+      <td class="ex">venezuela,vzla</td>
+      <td>Subreddit names (no <code>r/</code>). Bienes mines posts here to find what real users actually discuss.</td>
+    </tr>
+    <tr>
+      <td class="name">Countries</td>
+      <td class="ex">ve,co,us</td>
+      <td>2-letter codes. Bienes runs a Google search in each, then picks the country with the easiest-to-beat results for each topic.</td>
+    </tr>
+    <tr>
+      <td class="name">Google checks</td>
+      <td class="ex">20</td>
+      <td>How many top phrases get a deep Google-result analysis. Higher = more accurate ranking, but slower (and uses more API quota).</td>
+    </tr>
+    <tr>
+      <td class="name">Article ideas to show</td>
+      <td class="ex">15</td>
+      <td>How many entries appear in the final shortlist.</td>
+    </tr>
+    <tr>
+      <td class="name">Auto-discover rounds</td>
+      <td class="ex">1</td>
+      <td><strong>0</strong> = use only your topics. <strong>1</strong> = also harvest 5-8 related topics from trending searches + Reddit, expand them too. Recommended: 1.</td>
+    </tr>
+    <tr>
+      <td class="name">Check page freshness</td>
+      <td class="ex">on</td>
+      <td>Bienes fetches the top 3 ranking pages for each topic to see how old they are. Old pages = easier to outrank.</td>
+    </tr>
+    <tr>
+      <td class="name">Highlight what's new</td>
+      <td class="ex">off</td>
+      <td>Compares against your last run and tags new opportunities. Useful for weekly check-ins; off for first run.</td>
+    </tr>
+  </tbody>
+</table>
+
+
+<h2 id="running"><span class="folio">04</span>While it's running</h2>
+<p>
+  After you hit the button, the status block turns amber and the dark log
+  panel below it streams live output as Bienes works through the steps:
+  <em>autocomplete → reddit → trends → SERP checks → freshness → clustering → output</em>.
+</p>
+
+<img src="/static/guide/03-main-running.png" alt="Pipeline running" class="shot">
+<div class="shot-cap"><strong>While it runs.</strong> Status shows elapsed seconds; the log streams in real time via SSE (no polling lag).</div>
+
+<div class="callout">
+  <span class="label">If it looks stuck</span>
+  After 90 seconds with no log activity, a "looks stuck? click to reset" link
+  appears next to the status. Click it to reset the state — you can then run again.
+</div>
+
+
+<h2 id="results"><span class="folio">05</span>Reading the results</h2>
+<p>
+  When it's done, the right side fills with a Markdown-rendered shortlist.
+  Each entry is a recommended article topic, ranked best-to-worst by a combined
+  demand × beatability score.
+</p>
+
+<img src="/static/guide/04-main-done.png" alt="Results panel" class="shot">
+<div class="shot-cap"><strong>Top of the results.</strong> The TL;DR header summarises the run; entries are numbered from #1 (best opportunity).</div>
+
+<p>For each entry you'll see:</p>
+<ul>
+  <li><strong>Score</strong> (e.g. <code>9</code>) — combined demand + SERP-weakness. Higher = better opportunity.</li>
+  <li><strong>Intent</strong> (e.g. <code>how-to</code>, <code>what-is</code>, <code>compare</code>) — what kind of article to write.</li>
+  <li><strong>"Captures N phrases"</strong> — how many near-duplicate phrases this article would target. Saves you writing N separate posts.</li>
+  <li><strong>SERP signals</strong> — plain-English reasons it ranks high (e.g. <em>"top pages 2 years stale"</em>, <em>"only 1/10 titles match query"</em>).</li>
+  <li><strong>Top-5 competitors</strong> — the domains currently ranking. If you don't recognise any big brands, your odds are good.</li>
+  <li><strong>Action</strong> — a one-line directive (<em>"Write a comprehensive how-to"</em>).</li>
+  <li><strong>Suggested outline</strong> — click to expand. Shows sibling phrases + Reddit-derived questions to use as section headings.</li>
+</ul>
+
+
+<h2 id="suggest"><span class="folio">06</span>Auto-suggest topics</h2>
+<p>
+  Don't know what topics to research? Click <strong>"Auto-suggest topics"</strong>
+  at the top of the textarea. The Suggest page mines your website's URLs (proven
+  topics for you), competitor URLs (industry consensus), and Spanish
+  niche-templates (verb × noun × city combos).
+</p>
+
+<img src="/static/guide/05-discover-idle.png" alt="Discover page" class="shot">
+<div class="shot-cap"><strong>The Suggest page.</strong> Form on the left for what to mine; results appear on the right with score + source attribution.</div>
+
+<p>
+  After clicking <strong>"Find topic ideas"</strong>, you get a checkable
+  list. Tick the ones that fit, click <strong>"Use selected"</strong> — you go
+  back to the main page with the selected topics already filled in.
+</p>
+
+
+<h2 id="reuse"><span class="folio">07</span>Reusing past runs</h2>
+<p>
+  Every run is saved permanently (Bienes uses a Coolify volume, so they
+  survive redeploys). The <strong>"Past results"</strong> section in the
+  bottom-left of the main page lists every prior run by timestamp — click any
+  to load that shortlist.
+</p>
+<p>
+  Caches make repeat runs fast: a re-run on the same topics typically
+  completes in under 15 seconds (vs. 60s cold) by reusing autocomplete
+  expansions, Reddit data, Trends data, and SERP results within their TTL
+  windows.
+</p>
+
+
+<h2 id="tips"><span class="folio">08</span>Tips, limits, and what to expect</h2>
+
+<h3>Good seed topics</h3>
+<ul>
+  <li><strong>Short and concrete</strong>: <code>vender casa venezuela</code> beats <code>cómo vender mi casa heredada en venezuela paso a paso</code>.</li>
+  <li><strong>Spanish, with locale-specific terms</strong>: include <code>venezuela</code>, <code>caracas</code>, <code>diaspora</code>, etc. when relevant.</li>
+  <li><strong>Mix angles</strong>: include buyer + seller + financing + diaspora topics in the same run. Cross-seed signals make better results.</li>
+</ul>
+
+<h3>What it doesn't do</h3>
+<ul>
+  <li>It does <strong>not</strong> write the articles for you. It produces briefs; you (or another tool) write the prose.</li>
+  <li>It does <strong>not</strong> publish. Output is Markdown for copy-paste into your CMS.</li>
+  <li>It does <strong>not</strong> track post-publish rankings. Use Google Search Console for that.</li>
+</ul>
+
+<h3>Cost</h3>
+<ul>
+  <li><strong>Serper</strong> (Google SERP API): ~$0.001/request. A typical full run = ~$0.04.</li>
+  <li><strong>Brave</strong>, <strong>Google CSE</strong>, <strong>Open PageRank</strong>: free quotas (1000-2000/month).</li>
+  <li><strong>Cloudflare Tunnel + Access</strong>: free.</li>
+  <li>Net: under $1/month for normal weekly use.</li>
+</ul>
+
+<h3>If something breaks</h3>
+<ul>
+  <li><strong>Stuck status</strong>: click "looks stuck? reset" link, then try again.</li>
+  <li><strong>Empty results</strong>: probably all SERP backends were rate-limited. Try again in 10-30 min, or set a SerpApi key.</li>
+  <li><strong>Auto-suggest finds nothing</strong>: your domain's sitemap may be private or absent. Try with the niche keyword filled in (template generator handles it).</li>
+</ul>
+
+<div class="callout" style="margin-top:48px">
+  <span class="label">That's it</span>
+  You now know enough to use Bienes for real content planning. Click
+  <strong><a href="/">‹ Back to app</a></strong> when you're ready to run a search.
+</div>
+
+</div>
+
+<div class="footer">
+  Bienes · Guide · Built 2026 · Read time ~5 min
+</div>
+</body></html>
+"""
+
+
 @app.route("/")
 def index():
     return PAGE
@@ -1077,6 +1463,11 @@ def index():
 @app.route("/discover")
 def discover_page():
     return DISCOVER_PAGE
+
+
+@app.route("/guide")
+def guide_page():
+    return GUIDE_PAGE
 
 
 @app.route("/discover/run", methods=["POST"])
